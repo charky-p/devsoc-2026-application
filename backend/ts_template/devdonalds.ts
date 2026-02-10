@@ -19,6 +19,9 @@ interface ingredient extends cookbookEntry {
   cookTime: number;
 }
 
+// Persistant data
+const dataStore: cookbookEntry[] = [];
+
 // =============================================================================
 // ==== HTTP Endpoint Stubs ====================================================
 // =============================================================================
@@ -68,9 +71,39 @@ const parse_handwriting = (recipeName: string): string | null => {
 // [TASK 2] ====================================================================
 // Endpoint that adds a CookbookEntry to your magical cookbook
 app.post("/entry", (req:Request, res:Response) => {
-  // TODO: implement me
-  res.status(500).send("not yet implemented!")
+  const {type, name} = req.body;
 
+  if (type !== "recipe" && type !== "ingredient") return res.status(400).send("Invalid type - must be recipe or ingredient!");
+  
+  if (dataStore.find(entry => entry.name === name)) return res.status(400).send("Entry already exists!");
+
+  if (type === "recipe") {
+    // Recipe
+    const requiredItems = req.body.requiredItems;
+    if (!Array.isArray(requiredItems)) return res.status(400).send("Recipes must have a list of requiredItems!");
+
+    // Parse required items list
+    const itemList: requiredItem[] = [];
+    const seenNames: Set<string> = new Set<string>();
+    for (const item of requiredItems) {
+      const {name, quantity} = item;
+      if (seenNames.has(name)) return res.status(400).send("Duplicate items in recipe list!");
+      seenNames.add(name);
+
+      itemList.push({name, quantity});
+    }
+
+    const newRecipe: recipe = {name, type, requiredItems: itemList};
+    dataStore.push(newRecipe);
+  } else {
+    // Ingredient
+    const cookTime = req.body.cookTime;
+    if (typeof cookTime !== "number" || cookTime < 0) return res.status(400).send("Cook time must be non negative!");
+
+    const newIngredient: ingredient = {name, type, cookTime};
+    dataStore.push(newIngredient);
+  }
+  res.status(200).send({});
 });
 
 // [TASK 3] ====================================================================
