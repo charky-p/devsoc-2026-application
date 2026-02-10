@@ -32,7 +32,38 @@ Write SQL (Postgres) `CREATE` statements to create the following schema. Be sure
 
 **Answer box:**
 ```sql
--- Create tables here
+CREATE TABLE Users (
+  id INTEGER PRIMARY KEY
+);
+
+CREATE TABLE playlists (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER,
+  name TEXT,
+  CONSTRAINT link_user
+    FOREIGN KEY(user_id)
+    REFERENCES Users(id)
+    ON DELETE CASCADE
+);
+
+CREATE TABLE playlist_songs (
+  playlist_id INTEGER PRIMARY KEY,
+  song_id INTEGER PRIMARY KEY,
+  CONSTRAINT link_playlist
+    FOREIGN KEY(playlist_id)
+    REFERENCES playlists(id)
+    ON DELETE CASCADE,
+  CONSTRAINT link_song
+    FOREIGN KEY(song_id)
+    REFERENCES songs(id)
+);
+
+CREATE TABLE songs (
+  id INTEGER PRIMARY KEY,
+  title TEXT,
+  artist TEXT,
+  duration INTERVAL
+);
 ```
 
 ### b)
