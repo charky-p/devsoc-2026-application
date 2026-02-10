@@ -19,6 +19,11 @@ interface ingredient extends cookbookEntry {
   cookTime: number;
 }
 
+interface recipeSummary {
+  cookTime: number,
+  ingredients: requiredItem[]
+}
+
 // Persistant data
 const dataStore: cookbookEntry[] = [];
 
@@ -108,11 +113,53 @@ app.post("/entry", (req:Request, res:Response) => {
 
 // [TASK 3] ====================================================================
 // Endpoint that returns a summary of a recipe that corresponds to a query name
-app.get("/summary", (req:Request, res:Request) => {
-  // TODO: implement me
-  res.status(500).send("not yet implemented!")
+app.get("/summary", (req:Request, res:Response) => {
+  const recipeName = req.query.name;
 
+  try {
+    const ingredientMap: Map<string, number> = new Map();
+    getIngredients(recipeName, 1, ingredientMap);
+
+    // Calculate cook time
+    let cookTime = 0;
+    const ingredientsList: requiredItem[] = [];
+    ingredientMap.forEach((quantity, name) => {
+      ingredientsList.push({name, quantity});
+      const ingredient: ingredient = dataStore.find(entry => entry.name === name) as ingredient;
+      cookTime += ingredient.cookTime * quantity;
+    });
+
+    res.status(200).send({
+      name: recipeName,
+      cookTime: cookTime,
+      ingredients: ingredientsList
+    });
+  } catch (e) {
+    res.status(400).send(e.message);
+  }
 });
+
+const getIngredients = (recipeName: string, multiplier: number, ingredientMap: Map<string, number>): void => {
+  const entry: cookbookEntry = dataStore.find(entry => entry.name === recipeName);
+
+  if (!entry) throw new Error("The recipe '" + recipeName + "' does not exist!");
+  if (entry.type !== "recipe") throw new Error("The entry '" + recipeName + "' is an ingredient");
+
+  const recipe: recipe = entry as recipe;
+
+  for (const requiredItem of recipe.requiredItems) {
+    const itemEntry: cookbookEntry = dataStore.find(entry => entry.name === requiredItem.name);
+    if (!itemEntry) throw new Error("The recipe '" + itemEntry.name + "' does not exist!");
+
+    // Recurse into recipes
+    if (itemEntry.type === "ingredient") {
+      const currentQuantity = ingredientMap.get(itemEntry.name) || 0;
+      ingredientMap.set(itemEntry.name, currentQuantity + requiredItem.quantity * multiplier);
+    } else if (itemEntry.type === "recipe") {
+      getIngredients(itemEntry.name, multiplier * requiredItem.quantity, ingredientMap);
+    }
+  }
+}
 
 // =============================================================================
 // ==== DO NOT TOUCH ===========================================================
